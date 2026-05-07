@@ -44,12 +44,14 @@ SUPPORTED AGENTS
     gemini       Gemini CLI                 gemini extensions install
   Via npx skills add:
     codex        Codex CLI + GUI
-    copilot      GitHub Copilot CLI + VS Code
+    copilot      GitHub Copilot CLI (gh)
+    vscode       VS Code (Copilot)             detected via `code` CLI
     antigravity  Gemini GUI (Antigravity)
 
 EXAMPLES
   install.ps1                        # auto-detect all agents
   install.ps1 -Only claude
+  install.ps1 -Only vscode
   install.ps1 -Only copilot -Only codex
   install.ps1 -DryRun
 '@
@@ -209,7 +211,8 @@ Install-Claude
 Install-Gemini
 
 Install-Via-Skills "codex"       "Codex CLI + GUI"             "cmd:codex" "codex"
-Install-Via-Skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"   "github-copilot"
+Install-Via-Skills "copilot"     "GitHub Copilot CLI"          "cmd:gh"    "github-copilot"
+Install-Via-Skills "vscode"      "VS Code (Copilot)"           "cmd:code"  "github-copilot"
 Install-Via-Skills "antigravity" "Gemini GUI (Antigravity)"    "dir:$env:USERPROFILE\.antigravity" "antigravity"
 
 # ── Summary ──────────────────────────────────────────────────────────────────

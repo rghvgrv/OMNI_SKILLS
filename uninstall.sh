@@ -40,7 +40,7 @@ FLAGS
   -h, --help        Show this help and exit.
 
 AGENTS
-  claude  gemini  codex  copilot  antigravity
+  claude  gemini  codex  copilot  vscode  antigravity
 EOF
       exit 0 ;;
     *) echo "error: unknown flag: $1" >&2; exit 2 ;;
@@ -155,7 +155,8 @@ remove_claude
 remove_gemini
 
 remove_via_skills "codex"       "Codex CLI + GUI"              "cmd:codex"                "codex"
-remove_via_skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"                   "github-copilot"
+remove_via_skills "copilot"     "GitHub Copilot CLI"           "cmd:gh"                   "github-copilot"
+remove_via_skills "vscode"      "VS Code (Copilot)"            "cmd:code"                 "github-copilot"
 remove_via_skills "antigravity" "Gemini GUI (Antigravity)"     "dir:$HOME_DIR/.antigravity" "antigravity"
 
 # Direct cleanup of ~/.agents/skills/<skill>

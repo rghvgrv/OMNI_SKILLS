@@ -66,6 +66,17 @@ claude plugin install rghvgrv/OMNI_SKILLS
 ```bash
 npx -y skills add rghvgrv/OMNI_SKILLS -a github-copilot --global
 ```
+- **VS Code (Copilot)** (npx-skills) — detected via `code` CLI
+```bash
+npx -y skills add rghvgrv/OMNI_SKILLS -a github-copilot --global
+```
+Or via installer:
+```powershell
+.\install.ps1 -Only vscode
+```
+```bash
+bash install.sh --only vscode
+```
 - **Gemini CLI** (extension)
 ```bash
 gemini extensions install rghvgrv/OMNI_SKILLS

@@ -120,7 +120,8 @@ Remove-Claude
 Remove-Gemini
 
 Remove-Via-Skills "codex"       "Codex CLI + GUI"              "cmd:codex" "codex"
-Remove-Via-Skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"    "github-copilot"
+Remove-Via-Skills "copilot"     "GitHub Copilot CLI"           "cmd:gh"    "github-copilot"
+Remove-Via-Skills "vscode"      "VS Code (Copilot)"            "cmd:code"  "github-copilot"
 Remove-Via-Skills "antigravity" "Gemini GUI (Antigravity)"     "dir:$env:USERPROFILE\.antigravity" "antigravity"
 
 # Direct cleanup of ~/.agents/skills/<skill> (regardless of agent) ────────────
