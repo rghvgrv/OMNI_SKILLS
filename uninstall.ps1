@@ -20,10 +20,11 @@ $SKIPPED = [System.Collections.Generic.List[string]]::new()
 $FAILED  = [System.Collections.Generic.List[string]]::new()
 
 $useColor = -not $NoColor -and $Host.UI.SupportsVirtualTerminal
-function Say  { param($msg) if ($useColor) { Write-Host "``e[0;32m$msg``e[0m" } else { Write-Host $msg } }
-function Warn { param($msg) if ($useColor) { Write-Host "``e[0;33m$msg``e[0m" } else { Write-Host $msg } }
-function Err  { param($msg) $line = if ($useColor) { "``e[0;31m$msg``e[0m" } else { $msg }; [Console]::Error.WriteLine($line) }
-function Note { param($msg) if ($useColor) { Write-Host "``e[2m$msg``e[0m"    } else { Write-Host $msg } }
+$ESC = [char]27
+function Say  { param($msg) if ($useColor) { Write-Host "$ESC[0;32m$msg$ESC[0m" } else { Write-Host $msg } }
+function Warn { param($msg) if ($useColor) { Write-Host "$ESC[0;33m$msg$ESC[0m" } else { Write-Host $msg } }
+function Err  { param($msg) $line = if ($useColor) { "$ESC[0;31m$msg$ESC[0m" } else { $msg }; [Console]::Error.WriteLine($line) }
+function Note { param($msg) if ($useColor) { Write-Host "$ESC[2m$msg$ESC[0m"    } else { Write-Host $msg } }
 
 function Only-Filter { param([string]$id) if ($Only.Count -eq 0) { return $true } return $Only -contains $id }
 function Has-Command { param([string]$name) return $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
@@ -102,7 +103,7 @@ function Remove-Via-Skills {
             & npx -y skills remove $s -a $profile --yes --global 2>&1 | ForEach-Object { Write-Host "  $_" }
             if ($LASTEXITCODE -eq 0) { $anyRemoved = $true }
         } catch {
-            Note "  $s: $_"
+            Note "  ${s}: $_"
         }
     }
     if ($anyRemoved) { $REMOVED.Add($id) } else { $SKIPPED.Add($id); Note "  nothing matched" }
@@ -134,5 +135,10 @@ if ($REMOVED.Count -eq 0 -and $SKIPPED.Count -eq 0 -and $FAILED.Count -eq 0) {
 }
 Write-Host "────────────────────────────────────"
 
-if ($FAILED.Count -gt 0) { exit 1 }
-exit 0
+if ($FAILED.Count -gt 0) {
+    $global:LASTEXITCODE = 1
+    Err "Done with errors."
+} else {
+    $global:LASTEXITCODE = 0
+    Say "Done."
+}
