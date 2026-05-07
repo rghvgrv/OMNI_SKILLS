@@ -34,47 +34,27 @@ Drop compression when:
 - Code/commits/PRs: full standard prose, no compression
 - "stop" or "normal mode": revert to standard responses
 
-## End-of-chat token summary
-
-When user signals end of conversation — "thanks", "bye", "done", "wrap up", "/cost", "summary", "exit" — append cumulative tally for whole session:
-
+## Per-Turn Token Stats
+After EVERY response, print this block in chat. No file. No exceptions.
 ```
-── min-token session totals ──
-turns:           <N>
-tokens in:       ≈<sum_in>
-tokens out:      ≈<sum_out>
-tokens total:    ≈<sum_in + sum_out>
-verbose-equiv:   ≈<estimated_uncompressed_out>
-saved:           ≈<verbose_equiv − sum_out> tokens (~<P>%)
+── min-token ──
+turns: <N> | in: ≈<sum_in> | out: ≈<sum_out> | total: ≈<sum_in+sum_out> | saved: ≈<saved> (~<P>%)
 ```
 
-### How to compute (no API access)
-
-Tokenizer ≈ **1 token per 4 chars** prose, **1 token per 3 chars** code/symbols.
-
+**Compute (per turn):**
 ```
-sum_in   = Σ ceil(len(user_msg_chars) / 4)        for all user turns
-sum_out  = Σ ceil(len(assistant_msg_chars) / 4)   for all assistant turns
-verbose_equiv = sum_out × multiplier
-  multiplier ≈ 3.0 for prose-heavy sessions
-  multiplier ≈ 1.5 for code/error-heavy sessions
-  multiplier ≈ 2.2 mixed (default)
-saved    = verbose_equiv − sum_out
-P        = round(saved / verbose_equiv × 100)
+turn_in        = ceil(user_msg_chars / 4)
+turn_out       = ceil(assistant_msg_chars / 4)
+multiplier     = 3.0 prose-heavy | 1.5 code-heavy | 2.2 mixed (default)
+verbose_equiv  = turn_out × multiplier
+saved          = verbose_equiv − turn_out
+P              = round(saved / verbose_equiv × 100)
 ```
+
+> If host exposes real counts: marked `(measured)` not `≈`
+---
 
 ### Display rule
-- Print ONLY at conversation end trigger above, not per-turn.
+- Print AFTER every response, not before
 - If host agent exposes real counts (`/cost`, API usage object): mark `(measured)` instead of `≈`.
-- Always append in standard prose (skill auto-drops compression for tabular data — see Auto-Clarity).
-
-### Example
-```
-── min-token session totals ──
-turns:           7
-tokens in:       ≈420
-tokens out:      ≈610
-tokens total:    ≈1030
-verbose-equiv:   ≈1830
-saved:           ≈1220 tokens (~67%)
-```
+- One line only — no multiline block per turn
