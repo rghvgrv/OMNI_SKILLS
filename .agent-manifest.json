@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "get_time",
+      "path": "skills/clock/clock.sh",
+      "description": "Returns system time, date, timezone, and Unix epoch."
+    },
+    {
+      "name": "get_system_stats",
+      "path": "skills/system-stats/stats.sh",
+      "description": "Returns OS, hostname, CPU, memory, disk, and uptime."
+    }
+  ]
+}

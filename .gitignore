@@ -1,0 +1,14 @@
+# Test bootstrap (bats-core fetched on first run)
+tests/.bin/
+
+# Settings backups created by installer
+*.bak
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+.idea/
+*.swp

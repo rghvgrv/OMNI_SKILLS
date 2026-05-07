@@ -1,0 +1,14 @@
+{
+  "name": "OMNI_SKILLS",
+  "slug": "omni_skills",
+  "version": "1.0.0",
+  "description": "A collection of AI agent skills for retrieving time and system statistics.",
+  "publisher": "rghvgrv",
+  "repository": "https://github.com/rghvgrv/OMNI_SKILLS",
+  "license": "MIT",
+  "visibility": "public",
+  "categories": ["Productivity", "Utilities"],
+  "keywords": ["AI", "skills", "clock", "system", "stats"],
+  "support_url": "https://github.com/rghvgrv/OMNI_SKILLS/issues",
+  "privacy_policy_url": "https://github.com/rghvgrv/OMNI_SKILLS/blob/main/LICENSE"
+}
