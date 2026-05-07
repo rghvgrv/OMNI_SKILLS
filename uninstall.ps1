@@ -13,7 +13,7 @@ param(
 )
 
 $REPO = "rghvgrv/OMNI_SKILLS"
-$SKILL_NAMES = @("clock", "system-stats")
+$SKILL_NAMES = @("clock", "system-stats", "min-token")
 
 # UTF-8 console (fixes ΓêÜ/ΓÇª mojibake from claude/gemini/npx output)
 try {

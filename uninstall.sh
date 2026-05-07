@@ -9,7 +9,7 @@
 set -euo pipefail
 
 REPO="rghvgrv/OMNI_SKILLS"
-SKILL_NAMES="clock system-stats"
+SKILL_NAMES="clock system-stats min-token"
 
 DRY=0
 NO_COLOR=0

@@ -1,6 +1,6 @@
 {
   "name": "omni-skills",
-  "description": "Universal AI agent skill toolkit — clock + system-stats for any major coding agent.",
+  "description": "Universal AI agent skill toolkit — clock, system-stats, min-token for any major coding agent.",
   "owner": {
     "name": "rghvgrv",
     "url": "https://github.com/rghvgrv"
@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "omni-skills",
-      "description": "Clock and system-stats skills (date/time, CPU, memory, disk, OS, uptime).",
+      "description": "Clock, system-stats, min-token skills (date/time, CPU/memory/disk/OS/uptime, ultra-compressed reply mode).",
       "source": "./",
       "category": "utility"
     }

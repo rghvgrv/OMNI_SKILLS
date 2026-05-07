@@ -8,6 +8,7 @@
 |---|---|
 | **clock** | Current date, time, timezone, Unix epoch |
 | **system-stats** | OS, hostname, CPU, memory, disk, uptime |
+| **min-token** | Ultra-compressed reply mode — drops filler, keeps signal |
 
 Pure markdown instructions (`SKILL.md`). The host agent reads the skill and runs the appropriate per-OS shell commands itself — no bundled scripts. Linux, macOS, Windows (PowerShell or Git Bash).
 
@@ -110,12 +111,13 @@ gemini extensions uninstall omni-skills
 ```bash
 npx -y skills remove clock        -a codex --yes --global
 npx -y skills remove system-stats -a codex --yes --global
+npx -y skills remove min-token    -a codex --yes --global
 # repeat for -a github-copilot, -a antigravity if installed
 ```
 
 Or just nuke the global skill dirs:
 ```bash
-rm -rf ~/.agents/skills/clock ~/.agents/skills/system-stats
+rm -rf ~/.agents/skills/clock ~/.agents/skills/system-stats ~/.agents/skills/min-token
 ```
 
 ## Repo layout
@@ -133,7 +135,9 @@ rm -rf ~/.agents/skills/clock ~/.agents/skills/system-stats
 └── skills/
     ├── clock/
     │   └── SKILL.md
-    └── system-stats/
+    ├── system-stats/
+    │   └── SKILL.md
+    └── min-token/
         └── SKILL.md
 ```
 
