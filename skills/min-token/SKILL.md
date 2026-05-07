@@ -34,8 +34,11 @@ Drop compression when:
 - Code/commits/PRs: full standard prose, no compression
 - "stop" or "normal mode": revert to standard responses
 
-## Per-Turn Token Stats
-After EVERY response, print this block in chat. No file. No exceptions.
+## Per-Turn Token Stats — MANDATORY
+This block MUST appear at the end of EVERY response.
+Print in chat. Never in a file. Never skip. Never omit.
+Even if response is one word — still print.
+
 ```
 ── min-token ──
 turns: <N> | in: ≈<sum_in> | out: ≈<sum_out> | total: ≈<sum_in+sum_out> | saved: ≈<saved> (~<P>%)
