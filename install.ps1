@@ -59,10 +59,10 @@ if ($Help -or $List) { Write-Host $HELP_TEXT; exit 0 }
 # ── Color setup ──────────────────────────────────────────────────────────────
 $useColor = -not $NoColor -and $Host.UI.SupportsVirtualTerminal
 
-function Say  { param($msg) if ($useColor) { Write-Host "`e[0;32m$msg`e[0m" } else { Write-Host $msg } }
-function Warn { param($msg) if ($useColor) { Write-Host "`e[0;33m$msg`e[0m" } else { Write-Host $msg } }
-function Err  { param($msg) $line = if ($useColor) { "`e[0;31m$msg`e[0m" } else { $msg }; [Console]::Error.WriteLine($line) }
-function Note { param($msg) if ($useColor) { Write-Host "`e[2m$msg`e[0m"    } else { Write-Host $msg } }
+function Say  { param($msg) if ($useColor) { Write-Host "``e[0;32m$msg``e[0m" } else { Write-Host $msg } }
+function Warn { param($msg) if ($useColor) { Write-Host "``e[0;33m$msg``e[0m" } else { Write-Host $msg } }
+function Err  { param($msg) $line = if ($useColor) { "``e[0;31m$msg``e[0m" } else { $msg }; [Console]::Error.WriteLine($line) }
+function Note { param($msg) if ($useColor) { Write-Host "``e[2m$msg``e[0m"    } else { Write-Host $msg } }
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 function Only-Filter {

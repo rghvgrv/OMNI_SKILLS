@@ -20,10 +20,10 @@ $SKIPPED = [System.Collections.Generic.List[string]]::new()
 $FAILED  = [System.Collections.Generic.List[string]]::new()
 
 $useColor = -not $NoColor -and $Host.UI.SupportsVirtualTerminal
-function Say  { param($msg) if ($useColor) { Write-Host "`e[0;32m$msg`e[0m" } else { Write-Host $msg } }
-function Warn { param($msg) if ($useColor) { Write-Host "`e[0;33m$msg`e[0m" } else { Write-Host $msg } }
-function Err  { param($msg) $line = if ($useColor) { "`e[0;31m$msg`e[0m" } else { $msg }; [Console]::Error.WriteLine($line) }
-function Note { param($msg) if ($useColor) { Write-Host "`e[2m$msg`e[0m"    } else { Write-Host $msg } }
+function Say  { param($msg) if ($useColor) { Write-Host "``e[0;32m$msg``e[0m" } else { Write-Host $msg } }
+function Warn { param($msg) if ($useColor) { Write-Host "``e[0;33m$msg``e[0m" } else { Write-Host $msg } }
+function Err  { param($msg) $line = if ($useColor) { "``e[0;31m$msg``e[0m" } else { $msg }; [Console]::Error.WriteLine($line) }
+function Note { param($msg) if ($useColor) { Write-Host "``e[2m$msg``e[0m"    } else { Write-Host $msg } }
 
 function Only-Filter { param([string]$id) if ($Only.Count -eq 0) { return $true } return $Only -contains $id }
 function Has-Command { param([string]$name) return $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
