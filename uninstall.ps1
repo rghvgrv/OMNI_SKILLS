@@ -13,6 +13,7 @@ param(
 )
 
 $REPO = "rghvgrv/OMNI_SKILLS"
+$SKILL_NAMES = @("clock", "system-stats")
 
 $REMOVED = [System.Collections.Generic.List[string]]::new()
 $SKIPPED = [System.Collections.Generic.List[string]]::new()
@@ -89,18 +90,22 @@ function Remove-Via-Skills {
     }
 
     if ($DryRun) {
-        Note "  [dry-run] npx -y skills remove $REPO -a $profile --yes --global"
+        foreach ($s in $SKILL_NAMES) {
+            Note "  [dry-run] npx -y skills remove $s -a $profile --yes --global"
+        }
         return
     }
 
-    try {
-        & npx -y skills remove $REPO -a $profile --yes --global 2>&1 | ForEach-Object { Write-Host "  $_" }
-        if ($LASTEXITCODE -eq 0) { $REMOVED.Add($id) }
-        else { $SKIPPED.Add($id); Note "  npx skills remove returned $LASTEXITCODE — likely already absent" }
-    } catch {
-        $SKIPPED.Add($id)
-        Note "  $_"
+    $anyRemoved = $false
+    foreach ($s in $SKILL_NAMES) {
+        try {
+            & npx -y skills remove $s -a $profile --yes --global 2>&1 | ForEach-Object { Write-Host "  $_" }
+            if ($LASTEXITCODE -eq 0) { $anyRemoved = $true }
+        } catch {
+            Note "  $s: $_"
+        }
     }
+    if ($anyRemoved) { $REMOVED.Add($id) } else { $SKIPPED.Add($id); Note "  nothing matched" }
 }
 
 Remove-Claude
@@ -112,7 +117,7 @@ Remove-Via-Skills "antigravity" "Gemini GUI (Antigravity)"     "dir:$env:USERPRO
 
 # Direct cleanup of ~/.agents/skills/<skill> (regardless of agent) ────────────
 $globalSkills = "$env:USERPROFILE\.agents\skills"
-foreach ($s in @("clock", "system-stats")) {
+foreach ($s in $SKILL_NAMES) {
     $p = Join-Path $globalSkills $s
     if (Test-Path $p) {
         if ($DryRun) { Note "  [dry-run] remove $p" }

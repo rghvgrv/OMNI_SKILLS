@@ -57,26 +57,27 @@ bash install.sh --list
 
 ## Supported agents
 
-| Agent | Detection | Install method | Where files land |
-|---|---|---|---|
-| Claude Code | `claude` on PATH | `claude plugin marketplace add` + `claude plugin install` | `~/.claude/plugins/` (global, native) |
-| Gemini CLI | `gemini` on PATH | `gemini extensions install --consent` | `~/.gemini/extensions/omni-skills/` (global, native) |
-| Codex CLI + GUI | `codex` on PATH | `npx -y skills add ... -a codex --global` | `~/.agents/skills/<skill>/` |
-| GitHub Copilot | `gh` on PATH | `npx -y skills add ... -a github-copilot --global` | `~/.agents/skills/<skill>/` |
-| Antigravity | `~/.antigravity/` exists | `npx -y skills add ... -a antigravity --global` | `~/.agents/skills/<skill>/` |
+- **Claude Code** (plugin)
+```bash
+claude plugin install rghvgrv/OMNI_SKILLS 
+```
+- **GitHub Copilot** (npx-skills)
+```bash
+npx -y skills add rghvgrv/OMNI_SKILLS -a github-copilot --global
+```
+- **Gemini CLI** (extension)
+```bash
+gemini extensions install rghvgrv/OMNI_SKILLS
+```
+- **Antigravity** (npx-skills)
+```bash
+npx -y skills add rghvgrv/OMNI_SKILLS -a antigravity --global
+```
+- **Codex** (npx-skills)
+```bash
+npx -y skills add rghvgrv/OMNI_SKILLS -a codex --global
+```
 
-No file copying anywhere. Native plugin/extension managers handle Claude and Gemini globally; the `skills` npm package handles every other agent via its own `--global` registry.
-
-## Why markdown-only?
-
-Earlier versions shipped `clock.sh` and `stats.sh` wrappers. That broke portability — Gemini extensions don't auto-run shell scripts. Now each `SKILL.md` lists the per-OS commands inline and the host agent invokes them via its own shell tool. Single source, every agent.
-
-## Use
-
-After install, the host agent loads the skill on session start and triggers it on natural-language requests. Manual probe via the agent's chat:
-
-> "What time is it?" → agent runs the `clock` skill → returns 4-line report.
-> "Show system stats." → agent runs the `system-stats` skill → returns 6-line report.
 
 ## Uninstall
 
@@ -105,11 +106,11 @@ claude plugin marketplace remove rghvgrv/OMNI_SKILLS
 gemini extensions uninstall omni-skills
 ```
 
-**npx-skills agents:**
+**npx-skills agents** (note: `skills remove` matches by **skill name**, not repo):
 ```bash
-npx -y skills remove rghvgrv/OMNI_SKILLS -a codex --yes --global
-npx -y skills remove rghvgrv/OMNI_SKILLS -a github-copilot --yes --global
-npx -y skills remove rghvgrv/OMNI_SKILLS -a antigravity --yes --global
+npx -y skills remove clock        -a codex --yes --global
+npx -y skills remove system-stats -a codex --yes --global
+# repeat for -a github-copilot, -a antigravity if installed
 ```
 
 Or just nuke the global skill dirs:

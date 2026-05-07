@@ -9,6 +9,7 @@
 set -euo pipefail
 
 REPO="rghvgrv/OMNI_SKILLS"
+SKILL_NAMES="clock system-stats"
 
 DRY=0
 NO_COLOR=0
@@ -134,16 +135,20 @@ remove_via_skills() {
   fi
 
   if [ "$DRY" = 1 ]; then
-    note "  [dry-run] npx -y skills remove $REPO -a $profile --yes --global"
+    local s
+    for s in $SKILL_NAMES; do
+      note "  [dry-run] npx -y skills remove $s -a $profile --yes --global"
+    done
     return 0
   fi
 
-  if npx -y skills remove "$REPO" -a "$profile" --yes --global 2>&1; then
-    REMOVED+=("$id")
-  else
-    SKIPPED+=("$id")
-    note "  npx skills remove returned non-zero — likely already absent"
-  fi
+  local any=0 s
+  for s in $SKILL_NAMES; do
+    if npx -y skills remove "$s" -a "$profile" --yes --global 2>&1; then
+      any=1
+    fi
+  done
+  if [ "$any" = 1 ]; then REMOVED+=("$id"); else SKIPPED+=("$id"); note "  nothing matched"; fi
 }
 
 remove_claude
@@ -154,7 +159,7 @@ remove_via_skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"         
 remove_via_skills "antigravity" "Gemini GUI (Antigravity)"     "dir:$HOME_DIR/.antigravity" "antigravity"
 
 # Direct cleanup of ~/.agents/skills/<skill>
-for s in clock system-stats; do
+for s in $SKILL_NAMES; do
   p="$HOME_DIR/.agents/skills/$s"
   if [ -d "$p" ]; then
     if [ "$DRY" = 1 ]; then note "  [dry-run] rm -rf $p"
