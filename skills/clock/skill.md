@@ -1,27 +1,54 @@
 ---
 name: clock
-description: > Fetches the current system time, date, and timezone details.
-usage: Run ./clock.sh
+description: >
+  Reports current system date, time, timezone, and Unix epoch from the host
+  machine. Use when user asks "what time is it?", "what's today's date?",
+  "what timezone am I in?", or any query about the present moment.
 ---
 
-### Intent
-This skill provides the AI agent with access to the host system's real-time clock. Use this tool when the user asks:
+## When to use
+
+Trigger on any query about current real-world time/date:
 - "What time is it?"
-- "What is today's date?"
-- "Check if it is a leap year."
+- "What's today's date?"
+- "Is it a leap year?"
+- "What's the current Unix timestamp?"
 
-### Execution
-The agent must execute the following script from the repository root:
-`./skills/clock/clock.sh`
+Do **not** use for: time-zone math, date arithmetic, parsing user-supplied dates. This skill only reports *now*.
 
-### Output Handling
-The script returns a multi-line string containing the date, time, and Unix epoch.
-**Example Output:**
-> Current Date: 2026-05-07
-> Current Time: 14:45:01
-> Timezone: IST
-> Unix Epoch: 1778153701
+## How to run
 
-### Response Guidelines
-- Convert the 24-hour output to the user's preferred format (e.g., 2:45 PM).
-- If the user asks about a leap year, use the "Current Date" provided by this skill to perform the calculation.
+Execute one of these via the shell tool, depending on host OS:
+
+**Linux / macOS / Git Bash:**
+```bash
+date '+Current Date: %Y-%m-%d
+Current Time: %H:%M:%S
+Timezone: %Z
+Unix Epoch: %s'
+```
+
+**Windows PowerShell (no bash available):**
+```powershell
+$d = Get-Date
+"Current Date: $($d.ToString('yyyy-MM-dd'))"
+"Current Time: $($d.ToString('HH:mm:ss'))"
+"Timezone: $([System.TimeZoneInfo]::Local.Id)"
+"Unix Epoch: $([DateTimeOffset]::Now.ToUnixTimeSeconds())"
+```
+
+## Output format
+
+Always present in this exact 4-line shape:
+
+```
+Current Date: YYYY-MM-DD
+Current Time: HH:MM:SS
+Timezone: <abbrev or IANA name>
+Unix Epoch: <integer>
+```
+
+## Notes
+
+- Timezone reporting depends on host. POSIX `date '+%Z'` returns abbreviation (`IST`, `PST`); PowerShell returns IANA-style id. Both acceptable.
+- Always read directly from system. Never fabricate or estimate.

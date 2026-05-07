@@ -19,6 +19,7 @@ DRY=0
 LIST_ONLY=0
 NO_COLOR=0
 FORCE=0
+QUIET_SUMMARY=0
 ONLY=()
 WOULD_INSTALL=()
 INSTALLED=()
@@ -68,6 +69,7 @@ while [ $# -gt 0 ]; do
     --list)      LIST_ONLY=1 ;;
     --no-color)  NO_COLOR=1 ;;
     --force|-f)  FORCE=1 ;;
+    --quiet-summary) QUIET_SUMMARY=1 ;;
     --only|--agent)
       shift
       [ $# -eq 0 ] && { echo "error: --only requires an argument" >&2; exit 2; }
@@ -199,7 +201,10 @@ ensure_repo_root() {
 }
 
 cleanup_repo_root() {
-  [ "$TEMP_REPO" = 1 ] && [ -n "$REPO_ROOT" ] && rm -rf "$REPO_ROOT"
+  if [ "$TEMP_REPO" = 1 ] && [ -n "$REPO_ROOT" ]; then
+    rm -rf "$REPO_ROOT" || true
+  fi
+  return 0
 }
 trap cleanup_repo_root EXIT
 
@@ -223,11 +228,8 @@ copy_skill_tree() {
 
 write_cursor_rule() {
   local name="$1" mdc="$2"
-  local script
-  script="$(ls "$REPO_ROOT/skills/$name"/*.sh 2>/dev/null | head -n1)"
-  script="$(basename "$script")"
   local desc
-  desc="$(awk -F'> ' '/^description:/ {sub(/^description:[[:space:]]*>?[[:space:]]*/,"",$0); print; exit}' "$REPO_ROOT/skills/$name/skill.md" 2>/dev/null)"
+  desc="$(awk -F'> ' '/^description:/ {sub(/^description:[[:space:]]*>?[[:space:]]*/,"",$0); print; exit}' "$REPO_ROOT/skills/$name/SKILL.md" 2>/dev/null)"
   desc="${desc:-OMNI_SKILLS skill}"
   cat > "$mdc" <<EOF
 ---
@@ -238,9 +240,7 @@ alwaysApply: false
 
 # $name
 
-Run \`./skills/$name/$script\` from the repo root to use this skill.
-
-See full instructions in \`skills/$name/skill.md\`.
+See full instructions in \`skills/$name/SKILL.md\`.
 EOF
 }
 
@@ -264,7 +264,7 @@ append_agents_block() {
     printf 'Skills available locally:\n\n'
     local s
     for s in $SKILL_NAMES; do
-      printf -- '- **%s** — see `skills/%s/skill.md` (run `./skills/%s/*.sh`)\n' "$s" "$s" "$s"
+      printf -- '- **%s** — see `skills/%s/SKILL.md`\n' "$s" "$s"
     done
     printf '\n%s\n' "$end"
   } >> "$md"
@@ -332,21 +332,25 @@ install_codex
 install_generic
 
 # ── Summary ──────────────────────────────────────────────────────────────────
-echo "────────────────────────────────────"
-[ ${#INSTALLED[@]}     -gt 0 ] && say  "✓ Installed: ${INSTALLED[*]}"
-[ ${#WOULD_INSTALL[@]} -gt 0 ] && note "~ Would install (dry-run): ${WOULD_INSTALL[*]}"
-[ ${#SKIPPED[@]}       -gt 0 ] && warn "⊘ Skipped (missing dep): ${SKIPPED[*]}"
-[ ${#FAILED[@]}        -gt 0 ] && err  "✗ Failed: ${FAILED[*]}"
+if [ "$QUIET_SUMMARY" = 0 ]; then
+  echo "────────────────────────────────────"
+  [ ${#INSTALLED[@]}     -gt 0 ] && say  "✓ Installed: ${INSTALLED[*]}"
+  [ ${#WOULD_INSTALL[@]} -gt 0 ] && note "~ Would install (dry-run): ${WOULD_INSTALL[*]}"
+  [ ${#SKIPPED[@]}       -gt 0 ] && warn "⊘ Skipped (missing dep): ${SKIPPED[*]}"
+  [ ${#FAILED[@]}        -gt 0 ] && err  "✗ Failed: ${FAILED[*]}"
 
-if [ ${#INSTALLED[@]} -eq 0 ] && [ ${#FAILED[@]} -eq 0 ] && [ ${#SKIPPED[@]} -eq 0 ] && [ ${#WOULD_INSTALL[@]} -eq 0 ]; then
-  if [ "${#ONLY[@]}" -gt 0 ]; then
-    warn "None of the specified agents were detected on this machine."
-  else
-    warn "No supported agents detected."
-    note "Install Claude Code, Gemini CLI, Cursor, or Codex first."
+  if [ ${#INSTALLED[@]} -eq 0 ] && [ ${#FAILED[@]} -eq 0 ] && [ ${#SKIPPED[@]} -eq 0 ] && [ ${#WOULD_INSTALL[@]} -eq 0 ]; then
+    if [ "${#ONLY[@]}" -gt 0 ]; then
+      warn "None of the specified agents were detected on this machine."
+    else
+      warn "No supported agents detected."
+      note "Install Claude Code, Gemini CLI, Cursor, or Codex first."
+    fi
   fi
+  echo "────────────────────────────────────"
 fi
-echo "────────────────────────────────────"
 
-[ "${#FAILED[@]}" -gt 0 ] && exit 1
+if [ "${#FAILED[@]}" -gt 0 ]; then
+  exit 1
+fi
 exit 0

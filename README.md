@@ -1,23 +1,17 @@
 # OMNI_SKILLS
 
-> Universal AI agent skill toolkit — two skills, one installer, every major agent.
+> Universal AI agent skill toolkit — markdown-only skills, multi-agent installer, every major coding agent.
 
 ## Skills
 
-| Skill | What it does | Script |
-|---|---|---|
-| **clock** | Current date, time, timezone, Unix epoch | `skills/clock/clock.sh` |
-| **system-stats** | OS, hostname, CPU, memory, disk, uptime | `skills/system-stats/stats.sh` |
+| Skill | What it does |
+|---|---|
+| **clock** | Current date, time, timezone, Unix epoch |
+| **system-stats** | OS, hostname, CPU, memory, disk, uptime |
 
-Pure POSIX bash. Linux, macOS, Windows (Git Bash / MSYS / Cygwin). On Windows, `system-stats` falls back to PowerShell for CPU / memory / uptime.
+Pure markdown instructions (`SKILL.md`). The host agent reads the skill and runs the appropriate per-OS shell commands itself — no bundled scripts. Linux, macOS, Windows (PowerShell or Git Bash).
 
 ## Quick install
-
-**macOS / Linux / Git Bash:**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/install.sh | bash
-```
 
 **Windows (PowerShell):**
 
@@ -25,7 +19,13 @@ curl -fsSL https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/install.sh
 irm https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/install.ps1 | iex
 ```
 
-The installer detects every AI agent on the machine and registers the skills with each. Re-runs are idempotent. Agents that aren't installed are skipped silently.
+**macOS / Linux / Git Bash:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/install.sh | bash
+```
+
+The installer detects every AI agent on the machine and registers the skills via that agent's native plugin/extension manager (global install). For agents without a plugin manager, it falls back to a per-user file copy. Re-runs are idempotent. Agents that aren't installed are skipped silently.
 
 ### From a clone
 
@@ -33,116 +33,101 @@ The installer detects every AI agent on the machine and registers the skills wit
 git clone https://github.com/rghvgrv/OMNI_SKILLS
 cd OMNI_SKILLS
 bash install.sh
+# or on Windows:
+.\install.ps1
 ```
 
 ### Flags
 
-```bash
-bash install.sh --force            # overwrite existing skill copies
-bash install.sh --agent claude     # install only to one agent
-bash install.sh --agent gemini
-bash install.sh --agent cursor
-bash install.sh --agent codex
-bash install.sh --agent generic
+```powershell
+.\install.ps1 -DryRun                    # print what would run
+.\install.ps1 -Only claude               # only Claude Code
+.\install.ps1 -Only claude -Only gemini  # multiple
+.\install.ps1 -Force                     # overwrite file-copy installs
+.\install.ps1 -List                      # show supported agents
 ```
 
-PowerShell mirror: `install.ps1 -Force` / `install.ps1 -Agent claude`.
+```bash
+bash install.sh --dry-run
+bash install.sh --only claude
+bash install.sh --only claude --only gemini
+bash install.sh --force
+bash install.sh --list
+```
 
 ## Supported agents
 
-| Agent | Detection | Where files land |
-|---|---|---|
-| Claude Code | `~/.claude/` exists | `~/.claude/skills/<name>/` + SessionStart hook in `settings.json` |
-| Gemini CLI | `~/.gemini/` exists | `~/.gemini/extensions/<name>/` + `gemini-extension.json` |
-| Cursor | `~/.cursor/` exists | `~/.cursor/rules/<name>.mdc` |
-| Codex CLI | `~/.codex/` exists | `~/.codex/skills/<name>/` + block in `~/.codex/AGENTS.md` |
-| Generic | `~/.agents/` exists | `~/.agents/skills/<name>/` |
+| Agent | Detection | Install method | Where files land |
+|---|---|---|---|
+| Claude Code | `claude` on PATH | `claude plugin marketplace add` + `claude plugin install` | `~/.claude/plugins/` (global, native) |
+| Gemini CLI | `gemini` on PATH | `gemini extensions install --consent` | `~/.gemini/extensions/omni-skills/` (global, native) |
+| Cursor | `~/.cursor/` exists | file copy | `~/.cursor/rules/<skill>.mdc` |
+| Codex CLI | `~/.codex/` exists | file copy + AGENTS.md block | `~/.codex/skills/<skill>/` |
+| Generic | `~/.agents/` exists | file copy | `~/.agents/skills/<skill>/` |
 
-## Requirements
+## Why markdown-only?
 
-- `bash` (Git Bash on Windows is fine — `install.ps1` finds it for you)
-- `node` — only needed to merge the Claude Code SessionStart hook into `settings.json`. Skipped with a warning if absent.
+Earlier versions shipped `clock.sh` and `stats.sh` wrappers. That broke portability — Gemini extensions don't auto-run shell scripts. Now each `SKILL.md` lists the per-OS commands inline and the host agent invokes them via its own shell tool. Single source, every agent.
 
 ## Use
 
-After install, the host agent loads the skill on session start. You can also run the scripts directly to see output:
+After install, the host agent loads the skill on session start and triggers it on natural-language requests. Manual probe via the agent's chat:
 
-```bash
-./skills/clock/clock.sh
-./skills/system-stats/stats.sh
-```
-
-Sample output:
-
-```
-Current Date: 2026-05-07
-Current Time: 14:45:01
-Timezone: IST
-Unix Epoch: 1778153701
-```
-
-```
-OS: Microsoft Windows 11 Home Single Language
-Hostname: DESKTOP-CTTEFBC
-CPU: Intel(R) Core(TM) i5-8300H CPU @ 2.30GHz (8 cores)
-Memory: 9824 MB used / 16228 MB total
-Disk: 142G used / 232G total (61% used)
-Uptime: 0d 0h 41m
-```
-
-## Test
-
-Tests use `bats-core`, fetched on first run by `tests/bootstrap.sh`.
-
-```bash
-bash tests/bootstrap.sh
-tests/.bin/bats-core/bin/bats tests/
-```
-
-Or one-liner:
-
-```bash
-bash tests/bootstrap.sh && tests/.bin/bats-core/bin/bats tests/
-```
-
-Expected: 33 tests, all passing.
+> "What time is it?" → agent runs the `clock` skill → returns 4-line report.
+> "Show system stats." → agent runs the `system-stats` skill → returns 6-line report.
 
 ## Uninstall
 
-```bash
-rm -rf ~/.claude/skills/clock ~/.claude/skills/system-stats
-rm -rf ~/.gemini/extensions/clock ~/.gemini/extensions/system-stats
-rm -f  ~/.cursor/rules/clock.mdc ~/.cursor/rules/system-stats.mdc
-rm -rf ~/.codex/skills/clock ~/.codex/skills/system-stats
+### One-shot
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/uninstall.ps1 | iex
 ```
 
-Also remove:
-- The `<!-- omni-skills:begin -->` … `<!-- omni-skills:end -->` block from `~/.codex/AGENTS.md`
-- The SessionStart hook entry containing `omni-skills` from `~/.claude/settings.json`
+**macOS / Linux / Git Bash:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/uninstall.sh | bash
+```
+
+Removes the plugin/extension from every detected agent and strips file-copy installs. Idempotent — safe to re-run. Skips agents that aren't installed.
+
+### Manual
+
+**Native plugin agents:**
+```bash
+claude plugin uninstall omni-skills@omni-skills
+gemini extensions uninstall omni-skills
+```
+
+**File-copy agents:**
+```bash
+rm -f  ~/.cursor/rules/clock.mdc ~/.cursor/rules/system-stats.mdc
+rm -rf ~/.codex/skills/clock ~/.codex/skills/system-stats
+rm -rf ~/.agents/skills/clock ~/.agents/skills/system-stats
+```
+
+Also remove the `<!-- omni-skills:begin -->` … `<!-- omni-skills:end -->` block from `~/.codex/AGENTS.md` if present.
 
 ## Repo layout
 
 ```
 .
-├── install.sh                    # universal bash installer
-├── install.ps1                   # Windows wrapper (delegates to install.sh)
-├── merge-settings.js             # idempotent JSON merge for Claude settings.json
-├── gemini-extension.json         # Gemini CLI extension manifest
+├── install.sh                # universal bash installer
+├── install.ps1               # Windows PowerShell installer
+├── uninstall.sh              # universal bash uninstaller
+├── uninstall.ps1             # Windows PowerShell uninstaller
+├── gemini-extension.json     # Gemini CLI extension manifest
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
-├── skills/
-│   ├── clock/
-│   │   ├── skill.md
-│   │   └── clock.sh
-│   └── system-stats/
-│       ├── skill.md
-│       └── stats.sh
-└── tests/
-    ├── bootstrap.sh
-    ├── clock.bats
-    ├── stats.bats
-    └── install.bats
+└── skills/
+    ├── clock/
+    │   └── SKILL.md
+    └── system-stats/
+        └── SKILL.md
 ```
 
 ## To check all the skills available at global level in your system, you can run the following command in your terminal:

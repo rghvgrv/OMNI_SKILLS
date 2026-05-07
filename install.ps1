@@ -250,7 +250,7 @@ function Install-Fallback-Agents {
             continue
         }
         $installSh = Join-Path $repoRoot "install.sh"
-        $shArgs = @((Convert-ToMsysPath $installSh), "--agent", $agent)
+        $shArgs = @((Convert-ToMsysPath $installSh), "--agent", $agent, "--quiet-summary")
         if ($Force) { $shArgs += "--force" }
         & $bash @shArgs
         if ($LASTEXITCODE -eq 0) { $INSTALLED.Add($agent) } else { $FAILED.Add($agent) }
