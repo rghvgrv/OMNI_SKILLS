@@ -15,6 +15,12 @@ param(
 $REPO = "rghvgrv/OMNI_SKILLS"
 $SKILL_NAMES = @("clock", "system-stats")
 
+# UTF-8 console (fixes ΓêÜ/ΓÇª mojibake from claude/gemini/npx output)
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch { }
+
 $REMOVED = [System.Collections.Generic.List[string]]::new()
 $SKIPPED = [System.Collections.Generic.List[string]]::new()
 $FAILED  = [System.Collections.Generic.List[string]]::new()
@@ -41,7 +47,8 @@ function Remove-Claude {
     }
     try {
         & claude plugin uninstall "omni-skills@omni-skills" 2>&1 | ForEach-Object { Write-Host "  $_" }
-        & claude plugin marketplace remove $REPO 2>&1 | ForEach-Object { Write-Host "  $_" }
+        # Marketplace registered under name "omni-skills", not full repo path
+        & claude plugin marketplace remove "omni-skills" 2>&1 | ForEach-Object { Write-Host "  $_" }
         $REMOVED.Add("claude")
     } catch {
         $FAILED.Add("claude")

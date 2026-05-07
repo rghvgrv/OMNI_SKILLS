@@ -56,6 +56,12 @@ EXAMPLES
 
 if ($Help -or $List) { Write-Host $HELP_TEXT; exit 0 }
 
+# ── UTF-8 console (fixes ΓêÜ/ΓÇª mojibake from claude/gemini/npx output) ─────
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch { }
+
 # ── Color setup ──────────────────────────────────────────────────────────────
 $useColor = -not $NoColor -and $Host.UI.SupportsVirtualTerminal
 $ESC = [char]27
