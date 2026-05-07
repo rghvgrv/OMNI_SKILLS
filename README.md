@@ -61,9 +61,11 @@ bash install.sh --list
 |---|---|---|---|
 | Claude Code | `claude` on PATH | `claude plugin marketplace add` + `claude plugin install` | `~/.claude/plugins/` (global, native) |
 | Gemini CLI | `gemini` on PATH | `gemini extensions install --consent` | `~/.gemini/extensions/omni-skills/` (global, native) |
-| Cursor | `~/.cursor/` exists | file copy | `~/.cursor/rules/<skill>.mdc` |
-| Codex CLI | `~/.codex/` exists | file copy + AGENTS.md block | `~/.codex/skills/<skill>/` |
-| Generic | `~/.agents/` exists | file copy | `~/.agents/skills/<skill>/` |
+| Codex CLI + GUI | `codex` on PATH | `npx -y skills add ... -a codex --global` | `~/.agents/skills/<skill>/` |
+| GitHub Copilot | `gh` on PATH | `npx -y skills add ... -a github-copilot --global` | `~/.agents/skills/<skill>/` |
+| Antigravity | `~/.antigravity/` exists | `npx -y skills add ... -a antigravity --global` | `~/.agents/skills/<skill>/` |
+
+No file copying anywhere. Native plugin/extension managers handle Claude and Gemini globally; the `skills` npm package handles every other agent via its own `--global` registry.
 
 ## Why markdown-only?
 
@@ -99,17 +101,21 @@ Removes the plugin/extension from every detected agent and strips file-copy inst
 **Native plugin agents:**
 ```bash
 claude plugin uninstall omni-skills@omni-skills
+claude plugin marketplace remove rghvgrv/OMNI_SKILLS
 gemini extensions uninstall omni-skills
 ```
 
-**File-copy agents:**
+**npx-skills agents:**
 ```bash
-rm -f  ~/.cursor/rules/clock.mdc ~/.cursor/rules/system-stats.mdc
-rm -rf ~/.codex/skills/clock ~/.codex/skills/system-stats
-rm -rf ~/.agents/skills/clock ~/.agents/skills/system-stats
+npx -y skills remove rghvgrv/OMNI_SKILLS -a codex --yes --global
+npx -y skills remove rghvgrv/OMNI_SKILLS -a github-copilot --yes --global
+npx -y skills remove rghvgrv/OMNI_SKILLS -a antigravity --yes --global
 ```
 
-Also remove the `<!-- omni-skills:begin -->` … `<!-- omni-skills:end -->` block from `~/.codex/AGENTS.md` if present.
+Or just nuke the global skill dirs:
+```bash
+rm -rf ~/.agents/skills/clock ~/.agents/skills/system-stats
+```
 
 ## Repo layout
 

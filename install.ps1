@@ -4,22 +4,20 @@
 #   irm https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/install.ps1 | iex
 #
 # Detects which AI coding agents are on the machine and installs OMNI_SKILLS
-# globally for each one via that agent's native plugin/extension manager.
-# Falls back to file-copy install for agents without a plugin manager.
+# globally for each via that agent's native plugin/extension manager, or via
+# `npx skills add` for agents without one. No file copying.
 
 [CmdletBinding()]
 param(
     [switch]$DryRun,
     [switch]$List,
     [switch]$NoColor,
-    [switch]$Force,
     [string[]]$Only = @(),
     [switch]$Help
 )
 
-$REPO       = "rghvgrv/OMNI_SKILLS"
-$REPO_URL   = "https://github.com/$REPO"
-$ASSETS_REF = if ($env:OMNI_REF) { $env:OMNI_REF } else { "main" }
+$REPO     = "rghvgrv/OMNI_SKILLS"
+$REPO_URL = "https://github.com/$REPO"
 
 $INSTALLED     = [System.Collections.Generic.List[string]]::new()
 $SKIPPED       = [System.Collections.Generic.List[string]]::new()
@@ -38,25 +36,21 @@ FLAGS
   -Only <agent>     Install only for the named agent. Repeatable.
   -List             Print supported agents and exit.
   -NoColor          Disable ANSI color codes.
-  -Force            Overwrite existing copies (file-copy agents only).
   -Help             Show this help and exit.
 
-ENVIRONMENT
-  OMNI_REF          Git ref used for fallback installs. Default: main
-
 SUPPORTED AGENTS
-  Native plugin manager (global):
-    claude       Claude Code         claude plugin marketplace add + install
-    gemini       Gemini CLI          gemini extensions install
-  File-copy fallback (per-user):
-    cursor       Cursor              ~/.cursor/rules/<skill>.mdc
-    codex        Codex CLI           ~/.codex/skills/<skill>/
-    generic      Generic .agents     ~/.agents/skills/<skill>/
+  Native:
+    claude       Claude Code CLI + App      claude plugin marketplace add + install
+    gemini       Gemini CLI                 gemini extensions install
+  Via npx skills add:
+    codex        Codex CLI + GUI
+    copilot      GitHub Copilot CLI + VS Code
+    antigravity  Gemini GUI (Antigravity)
 
 EXAMPLES
   install.ps1                        # auto-detect all agents
   install.ps1 -Only claude
-  install.ps1 -Only claude -Only gemini
+  install.ps1 -Only copilot -Only codex
   install.ps1 -DryRun
 '@
 
@@ -80,6 +74,19 @@ function Only-Filter {
 function Has-Command {
     param([string]$name)
     return $null -ne (Get-Command $name -ErrorAction SilentlyContinue)
+}
+
+function Ensure-Node {
+    if (Has-Command "node") { return $true }
+    Warn "  node/npx not found — skipping (install Node.js from https://nodejs.org)"
+    return $false
+}
+
+function Try-Run {
+    param([scriptblock]$block, [string]$description)
+    if ($DryRun) { Note "  [dry-run] $description"; return $true }
+    try { & $block; return ($LASTEXITCODE -eq 0 -or $null -eq $LASTEXITCODE) }
+    catch { return $false }
 }
 
 # ── Native: Claude Code ──────────────────────────────────────────────────────
@@ -149,115 +156,43 @@ function Install-Gemini {
     Write-Host ""
 }
 
-# ── Fallback: file-copy via install.sh (cursor/codex/generic) ────────────────
-function Find-Bash {
-    $candidates = @(
-        "$env:ProgramFiles\Git\bin\bash.exe",
-        "$env:ProgramFiles\Git\usr\bin\bash.exe",
-        "${env:ProgramFiles(x86)}\Git\bin\bash.exe",
-        "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+# ── Generic: npx skills add ──────────────────────────────────────────────────
+function Install-Via-Skills {
+    param(
+        [string]$id,
+        [string]$label,
+        [string]$detect,
+        [string]$profile
     )
-    foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
-    $cmd = Get-Command bash -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Path }
-    return $null
-}
 
-function Find-Git {
-    $cmd = Get-Command git -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Path }
-    return $null
-}
+    if (-not (Only-Filter $id)) { return }
 
-function Convert-ToMsysPath([string]$p) {
-    $full = (Resolve-Path $p).Path
-    if ($full -match '^([A-Za-z]):\\(.*)$') {
-        $drive = $matches[1].ToLower()
-        $rest  = $matches[2] -replace '\\', '/'
-        return "/$drive/$rest"
-    }
-    return $full -replace '\\', '/'
-}
-
-function Install-Fallback-Agents {
-    $fallbackTargets = @()
-    if ((Only-Filter "cursor")  -and (Test-Path "$env:USERPROFILE\.cursor"))  { $fallbackTargets += "cursor" }
-    if ((Only-Filter "codex")   -and (Test-Path "$env:USERPROFILE\.codex"))   { $fallbackTargets += "codex" }
-    if ((Only-Filter "generic") -and (Test-Path "$env:USERPROFILE\.agents")) { $fallbackTargets += "generic" }
-
-    if ($fallbackTargets.Count -eq 0) { return }
-
-    Say "→ File-copy fallback for: $($fallbackTargets -join ', ')"
-
-    $bash = Find-Bash
-    if (-not $bash) {
-        Warn "  bash not found — install Git for Windows to enable cursor/codex/generic"
-        foreach ($t in $fallbackTargets) { $SKIPPED.Add($t) }
-        Write-Host ""
+    $detected = $false
+    if ($detect.StartsWith("cmd:")) {
+        $cmd = $detect.Substring(4)
+        $detected = Has-Command $cmd
+    } elseif ($detect.StartsWith("dir:")) {
+        $dir = $detect.Substring(4)
+        $detected = Test-Path $dir
+    } else {
+        Warn "  BUG: unknown detect_expr '$detect' for agent '$id'"
         return
     }
 
-    # Detect script source: local checkout vs remote pipe.
-    $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $localInstallSh = Join-Path $scriptDir "install.sh"
-    $localSkills    = Join-Path $scriptDir "skills"
+    if (-not $detected) { return }
 
-    if ((Test-Path $localInstallSh) -and (Test-Path $localSkills)) {
-        $repoRoot = $scriptDir
-        $isTemp = $false
+    Say "→ $label detected"
+    if (-not (Ensure-Node)) { $SKIPPED.Add($id); Write-Host ""; return }
+
+    $ok = Try-Run {
+        & npx -y skills add $REPO -a $profile --yes --global
+    } "npx -y skills add $REPO -a $profile --yes --global"
+
+    if ($ok) {
+        if ($DryRun) { $WOULD_INSTALL.Add($id) } else { $INSTALLED.Add($id) }
     } else {
-        $git = Find-Git
-        $repoRoot = Join-Path $env:TEMP ("omni-skills-" + [guid]::NewGuid().ToString("N"))
-        $isTemp = $true
-
-        if ($git) {
-            if ($DryRun) {
-                Note "  [dry-run] git clone --depth 1 --branch $ASSETS_REF $REPO_URL $repoRoot"
-            } else {
-                & $git clone --depth 1 --branch $ASSETS_REF "$REPO_URL.git" $repoRoot 2>&1 | Out-Null
-                if ($LASTEXITCODE -ne 0) {
-                    Err "  git clone failed (exit $LASTEXITCODE) — skipping fallback"
-                    foreach ($t in $fallbackTargets) { $FAILED.Add($t) }
-                    Write-Host ""
-                    return
-                }
-            }
-        } else {
-            $tarUrl = "https://codeload.github.com/$REPO/tar.gz/refs/heads/$ASSETS_REF"
-            $tarPath = Join-Path $env:TEMP ("omni-skills-" + [guid]::NewGuid().ToString("N") + ".tar.gz")
-            if ($DryRun) {
-                Note "  [dry-run] download + extract tarball from $tarUrl"
-            } else {
-                try {
-                    Invoke-WebRequest -Uri $tarUrl -OutFile $tarPath -UseBasicParsing
-                    New-Item -ItemType Directory -Path $repoRoot -Force | Out-Null
-                    & tar.exe -xzf $tarPath -C $repoRoot --strip-components=1
-                    Remove-Item $tarPath -Force -ErrorAction SilentlyContinue
-                } catch {
-                    Err "  tarball fetch failed: $_ — skipping fallback"
-                    foreach ($t in $fallbackTargets) { $FAILED.Add($t) }
-                    Write-Host ""
-                    return
-                }
-            }
-        }
-    }
-
-    foreach ($agent in $fallbackTargets) {
-        if ($DryRun) {
-            Note "  [dry-run] bash install.sh --agent $agent"
-            $WOULD_INSTALL.Add($agent)
-            continue
-        }
-        $installSh = Join-Path $repoRoot "install.sh"
-        $shArgs = @((Convert-ToMsysPath $installSh), "--agent", $agent, "--quiet-summary")
-        if ($Force) { $shArgs += "--force" }
-        & $bash @shArgs
-        if ($LASTEXITCODE -eq 0) { $INSTALLED.Add($agent) } else { $FAILED.Add($agent) }
-    }
-
-    if ($isTemp -and -not $DryRun) {
-        Remove-Item $repoRoot -Recurse -Force -ErrorAction SilentlyContinue
+        $FAILED.Add($id)
+        Err "  npx skills add failed (profile: $profile)"
     }
     Write-Host ""
 }
@@ -265,7 +200,10 @@ function Install-Fallback-Agents {
 # ── Run installs ─────────────────────────────────────────────────────────────
 Install-Claude
 Install-Gemini
-Install-Fallback-Agents
+
+Install-Via-Skills "codex"       "Codex CLI + GUI"             "cmd:codex" "codex"
+Install-Via-Skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"   "github-copilot"
+Install-Via-Skills "antigravity" "Gemini GUI (Antigravity)"    "dir:$env:USERPROFILE\.antigravity" "antigravity"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 Write-Host "────────────────────────────────────"
@@ -279,7 +217,7 @@ if ($INSTALLED.Count -eq 0 -and $FAILED.Count -eq 0 -and $SKIPPED.Count -eq 0 -a
         Warn "None of the specified agents were detected on this machine."
     } else {
         Warn "No supported agents detected."
-        Note "Install Claude Code, Gemini CLI, Cursor, or Codex first."
+        Note "Run 'install.ps1 -List' to see all supported agents."
     }
 }
 Write-Host "────────────────────────────────────"

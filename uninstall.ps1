@@ -12,6 +12,8 @@ param(
     [string[]]$Only = @()
 )
 
+$REPO = "rghvgrv/OMNI_SKILLS"
+
 $REMOVED = [System.Collections.Generic.List[string]]::new()
 $SKIPPED = [System.Collections.Generic.List[string]]::new()
 $FAILED  = [System.Collections.Generic.List[string]]::new()
@@ -32,12 +34,12 @@ function Remove-Claude {
     Say "→ Claude Code"
     if ($DryRun) {
         Note "  [dry-run] claude plugin uninstall omni-skills@omni-skills"
-        Note "  [dry-run] claude plugin marketplace remove rghvgrv/OMNI_SKILLS"
+        Note "  [dry-run] claude plugin marketplace remove $REPO"
         return
     }
     try {
         & claude plugin uninstall "omni-skills@omni-skills" 2>&1 | ForEach-Object { Write-Host "  $_" }
-        & claude plugin marketplace remove "rghvgrv/OMNI_SKILLS" 2>&1 | ForEach-Object { Write-Host "  $_" }
+        & claude plugin marketplace remove $REPO 2>&1 | ForEach-Object { Write-Host "  $_" }
         $REMOVED.Add("claude")
     } catch {
         $FAILED.Add("claude")
@@ -65,84 +67,62 @@ function Remove-Gemini {
     }
 }
 
-# ── Cursor ──────────────────────────────────────────────────────────────────
-function Remove-Cursor {
-    if (-not (Only-Filter "cursor")) { return }
-    $dir = "$env:USERPROFILE\.cursor"
-    if (-not (Test-Path $dir)) { return }
-    Say "→ Cursor"
-    $files = @("$dir\rules\clock.mdc", "$dir\rules\system-stats.mdc")
-    $any = $false
-    foreach ($f in $files) {
-        if (Test-Path $f) {
-            $any = $true
-            if ($DryRun) { Note "  [dry-run] remove $f" }
-            else { Remove-Item $f -Force; Note "  removed: $f" }
-        }
-    }
-    if ($any) { $REMOVED.Add("cursor") } else { $SKIPPED.Add("cursor"); Note "  nothing to remove" }
-}
+# ── Generic: npx skills remove ──────────────────────────────────────────────
+function Remove-Via-Skills {
+    param(
+        [string]$id,
+        [string]$label,
+        [string]$detect,
+        [string]$profile
+    )
+    if (-not (Only-Filter $id)) { return }
 
-# ── Codex ───────────────────────────────────────────────────────────────────
-function Remove-Codex {
-    if (-not (Only-Filter "codex")) { return }
-    $dir = "$env:USERPROFILE\.codex"
-    if (-not (Test-Path $dir)) { return }
-    Say "→ Codex CLI"
-    $skills = @("$dir\skills\clock", "$dir\skills\system-stats")
-    $any = $false
-    foreach ($s in $skills) {
-        if (Test-Path $s) {
-            $any = $true
-            if ($DryRun) { Note "  [dry-run] remove $s" }
-            else { Remove-Item $s -Recurse -Force; Note "  removed: $s" }
-        }
-    }
-    # Strip omni-skills block from AGENTS.md
-    $md = "$dir\AGENTS.md"
-    if (Test-Path $md) {
-        $content = Get-Content $md -Raw
-        if ($content -match '<!-- omni-skills:begin -->') {
-            $any = $true
-            if ($DryRun) {
-                Note "  [dry-run] strip omni-skills block from $md"
-            } else {
-                $stripped = $content -replace '(?s)\n*<!-- omni-skills:begin -->.*?<!-- omni-skills:end -->\n*', "`n"
-                Set-Content -Path $md -Value $stripped -NoNewline
-                Note "  stripped block from: $md"
-            }
-        }
-    }
-    if ($any) { $REMOVED.Add("codex") } else { $SKIPPED.Add("codex"); Note "  nothing to remove" }
-}
+    $detected = $false
+    if ($detect.StartsWith("cmd:")) { $detected = Has-Command $detect.Substring(4) }
+    elseif ($detect.StartsWith("dir:")) { $detected = Test-Path $detect.Substring(4) }
+    if (-not $detected) { return }
 
-# ── Generic ─────────────────────────────────────────────────────────────────
-function Remove-Generic {
-    if (-not (Only-Filter "generic")) { return }
-    $dir = "$env:USERPROFILE\.agents"
-    if (-not (Test-Path $dir)) { return }
-    Say "→ Generic .agents"
-    $skills = @("$dir\skills\clock", "$dir\skills\system-stats")
-    $any = $false
-    foreach ($s in $skills) {
-        if (Test-Path $s) {
-            $any = $true
-            if ($DryRun) { Note "  [dry-run] remove $s" }
-            else { Remove-Item $s -Recurse -Force; Note "  removed: $s" }
-        }
+    Say "→ $label"
+    if (-not (Has-Command "node")) {
+        Warn "  node/npx not found — skipping"
+        $SKIPPED.Add($id); return
     }
-    if ($any) { $REMOVED.Add("generic") } else { $SKIPPED.Add("generic"); Note "  nothing to remove" }
+
+    if ($DryRun) {
+        Note "  [dry-run] npx -y skills remove $REPO -a $profile --yes --global"
+        return
+    }
+
+    try {
+        & npx -y skills remove $REPO -a $profile --yes --global 2>&1 | ForEach-Object { Write-Host "  $_" }
+        if ($LASTEXITCODE -eq 0) { $REMOVED.Add($id) }
+        else { $SKIPPED.Add($id); Note "  npx skills remove returned $LASTEXITCODE — likely already absent" }
+    } catch {
+        $SKIPPED.Add($id)
+        Note "  $_"
+    }
 }
 
 Remove-Claude
 Remove-Gemini
-Remove-Cursor
-Remove-Codex
-Remove-Generic
+
+Remove-Via-Skills "codex"       "Codex CLI + GUI"              "cmd:codex" "codex"
+Remove-Via-Skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"    "github-copilot"
+Remove-Via-Skills "antigravity" "Gemini GUI (Antigravity)"     "dir:$env:USERPROFILE\.antigravity" "antigravity"
+
+# Direct cleanup of ~/.agents/skills/<skill> (regardless of agent) ────────────
+$globalSkills = "$env:USERPROFILE\.agents\skills"
+foreach ($s in @("clock", "system-stats")) {
+    $p = Join-Path $globalSkills $s
+    if (Test-Path $p) {
+        if ($DryRun) { Note "  [dry-run] remove $p" }
+        else { Remove-Item $p -Recurse -Force; Note "  removed: $p" }
+    }
+}
 
 Write-Host "────────────────────────────────────"
 if ($REMOVED.Count -gt 0) { Say  "✓ Removed: $($REMOVED -join ', ')" }
-if ($SKIPPED.Count -gt 0) { Note "⊘ Nothing to remove: $($SKIPPED -join ', ')" }
+if ($SKIPPED.Count -gt 0) { Note "⊘ Nothing to remove / not installed: $($SKIPPED -join ', ')" }
 if ($FAILED.Count  -gt 0) { Err  "✗ Failed: $($FAILED -join ', ')" }
 if ($REMOVED.Count -eq 0 -and $SKIPPED.Count -eq 0 -and $FAILED.Count -eq 0) {
     Warn "No supported agents detected."

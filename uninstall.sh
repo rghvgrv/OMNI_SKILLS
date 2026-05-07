@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # OMNI_SKILLS — one-shot uninstaller (POSIX bash).
 #
-# One line (macOS / Linux / Git Bash):
+# One line:
 #   curl -fsSL https://raw.githubusercontent.com/rghvgrv/OMNI_SKILLS/main/uninstall.sh | bash
 #
 # Removes OMNI_SKILLS from every detected agent. Idempotent.
 
 set -euo pipefail
+
+REPO="rghvgrv/OMNI_SKILLS"
 
 DRY=0
 NO_COLOR=0
@@ -37,7 +39,7 @@ FLAGS
   -h, --help        Show this help and exit.
 
 AGENTS
-  claude  gemini  cursor  codex  generic
+  claude  gemini  codex  copilot  antigravity
 EOF
       exit 0 ;;
     *) echo "error: unknown flag: $1" >&2; exit 2 ;;
@@ -75,12 +77,12 @@ remove_claude() {
   say "→ Claude Code"
   if [ "$DRY" = 1 ]; then
     note "  [dry-run] claude plugin uninstall omni-skills@omni-skills"
-    note "  [dry-run] claude plugin marketplace remove rghvgrv/OMNI_SKILLS"
+    note "  [dry-run] claude plugin marketplace remove $REPO"
     return 0
   fi
   local ok=1
   claude plugin uninstall "omni-skills@omni-skills" || ok=0
-  claude plugin marketplace remove "rghvgrv/OMNI_SKILLS" || true
+  claude plugin marketplace remove "$REPO" || true
   [ "$ok" = 1 ] && REMOVED+=("claude") || FAILED+=("claude")
 }
 
@@ -107,82 +109,62 @@ remove_gemini() {
   fi
 }
 
-# ── Cursor ──────────────────────────────────────────────────────────────────
-remove_cursor() {
-  only_filter "cursor" || return 0
-  local dir="$HOME_DIR/.cursor"
-  [ -d "$dir" ] || return 0
-  say "→ Cursor"
-  local any=0 f
-  for f in "$dir/rules/clock.mdc" "$dir/rules/system-stats.mdc"; do
-    if [ -f "$f" ]; then
-      any=1
-      if [ "$DRY" = 1 ]; then note "  [dry-run] rm $f"
-      else rm -f "$f"; note "  removed: $f"; fi
-    fi
-  done
-  [ "$any" = 1 ] && REMOVED+=("cursor") || { SKIPPED+=("cursor"); note "  nothing to remove"; }
-}
+# ── Generic: npx skills remove ──────────────────────────────────────────────
+remove_via_skills() {
+  local id="$1"
+  local label="$2"
+  local detect="$3"
+  local profile="$4"
 
-# ── Codex ───────────────────────────────────────────────────────────────────
-remove_codex() {
-  only_filter "codex" || return 0
-  local dir="$HOME_DIR/.codex"
-  [ -d "$dir" ] || return 0
-  say "→ Codex CLI"
-  local any=0 s
-  for s in "$dir/skills/clock" "$dir/skills/system-stats"; do
-    if [ -d "$s" ]; then
-      any=1
-      if [ "$DRY" = 1 ]; then note "  [dry-run] rm -rf $s"
-      else rm -rf "$s"; note "  removed: $s"; fi
-    fi
-  done
-  local md="$dir/AGENTS.md"
-  if [ -f "$md" ] && grep -q '<!-- omni-skills:begin -->' "$md"; then
-    any=1
-    if [ "$DRY" = 1 ]; then
-      note "  [dry-run] strip omni-skills block from $md"
-    else
-      local tmp="$md.tmp"
-      awk '
-        BEGIN {skip=0}
-        /<!-- omni-skills:begin -->/ {skip=1; next}
-        /<!-- omni-skills:end -->/ {skip=0; next}
-        !skip {print}
-      ' "$md" > "$tmp" && mv "$tmp" "$md"
-      note "  stripped block from: $md"
-    fi
+  only_filter "$id" || return 0
+
+  local detected=0
+  if [[ "$detect" == cmd:* ]]; then
+    command -v "${detect#cmd:}" >/dev/null 2>&1 && detected=1
+  elif [[ "$detect" == dir:* ]]; then
+    [ -d "${detect#dir:}" ] && detected=1
   fi
-  [ "$any" = 1 ] && REMOVED+=("codex") || { SKIPPED+=("codex"); note "  nothing to remove"; }
-}
+  [ "$detected" = 0 ] && return 0
 
-# ── Generic ─────────────────────────────────────────────────────────────────
-remove_generic() {
-  only_filter "generic" || return 0
-  local dir="$HOME_DIR/.agents"
-  [ -d "$dir" ] || return 0
-  say "→ Generic .agents"
-  local any=0 s
-  for s in "$dir/skills/clock" "$dir/skills/system-stats"; do
-    if [ -d "$s" ]; then
-      any=1
-      if [ "$DRY" = 1 ]; then note "  [dry-run] rm -rf $s"
-      else rm -rf "$s"; note "  removed: $s"; fi
-    fi
-  done
-  [ "$any" = 1 ] && REMOVED+=("generic") || { SKIPPED+=("generic"); note "  nothing to remove"; }
+  say "→ $label"
+  if ! command -v node >/dev/null 2>&1; then
+    warn "  node/npx not found — skipping"
+    SKIPPED+=("$id")
+    return 0
+  fi
+
+  if [ "$DRY" = 1 ]; then
+    note "  [dry-run] npx -y skills remove $REPO -a $profile --yes --global"
+    return 0
+  fi
+
+  if npx -y skills remove "$REPO" -a "$profile" --yes --global 2>&1; then
+    REMOVED+=("$id")
+  else
+    SKIPPED+=("$id")
+    note "  npx skills remove returned non-zero — likely already absent"
+  fi
 }
 
 remove_claude
 remove_gemini
-remove_cursor
-remove_codex
-remove_generic
+
+remove_via_skills "codex"       "Codex CLI + GUI"              "cmd:codex"                "codex"
+remove_via_skills "copilot"     "GitHub Copilot CLI + VS Code" "cmd:gh"                   "github-copilot"
+remove_via_skills "antigravity" "Gemini GUI (Antigravity)"     "dir:$HOME_DIR/.antigravity" "antigravity"
+
+# Direct cleanup of ~/.agents/skills/<skill>
+for s in clock system-stats; do
+  p="$HOME_DIR/.agents/skills/$s"
+  if [ -d "$p" ]; then
+    if [ "$DRY" = 1 ]; then note "  [dry-run] rm -rf $p"
+    else rm -rf "$p"; note "  removed: $p"; fi
+  fi
+done
 
 echo "────────────────────────────────────"
 [ ${#REMOVED[@]} -gt 0 ] && say  "✓ Removed: ${REMOVED[*]}"
-[ ${#SKIPPED[@]} -gt 0 ] && note "⊘ Nothing to remove: ${SKIPPED[*]}"
+[ ${#SKIPPED[@]} -gt 0 ] && note "⊘ Nothing to remove / not installed: ${SKIPPED[*]}"
 [ ${#FAILED[@]}  -gt 0 ] && err  "✗ Failed: ${FAILED[*]}"
 if [ ${#REMOVED[@]} -eq 0 ] && [ ${#SKIPPED[@]} -eq 0 ] && [ ${#FAILED[@]} -eq 0 ]; then
   warn "No supported agents detected."
