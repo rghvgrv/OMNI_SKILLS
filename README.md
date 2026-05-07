@@ -145,6 +145,12 @@ Also remove:
     └── install.bats
 ```
 
+## To check all the skills available at global level in your system, you can run the following command in your terminal:
+
+```bash
+npx -y skills list --global
+```
+
 ## License
 
 MIT — see `LICENSE`.
